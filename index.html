@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Communities' Choice Portal v2.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- SwiperJS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DynaPuff:wght@400;700&family=Arial+Nova&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Styling & Branding */
+    body { font-family: 'Arial Nova', Arial, sans-serif; }
+    h1, h2, h3, h4, .dynapuff, button { font-family: 'DynaPuff', cursive; }
+    
+    .gradient-bg { background: linear-gradient(135deg, #f3e8ff 0%, #e0f2fe 100%); }
+    .portal-card { @apply bg-white rounded-2xl shadow-xl border border-purple-100 transition-all duration-300 hover:shadow-2xl; }
+    
+    /* Timeline & Custom Scrollbar */
+    .timeline-bar { height: 4px; background: #e5e7eb; position: relative; top: 14px; z-index: 0; }
+    .timeline-point { width: 32px; height: 32px; border-radius: 50%; z-index: 10; position: relative; transition: all 0.3s; }
+    .timeline-point.active { transform: scale(1.2); box-shadow: 0 0 0 4px #e9d5ff; }
+
+    /* Forms */
+    input, select, textarea { @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors; }
+    label { @apply block text-sm font-bold text-gray-700 mb-1; }
+
+    /* Utils */
+    .hidden-page { display: none; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    #loading-overlay {
+        display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+        background: rgba(255,255,255,0.9); z-index: 9999;
+        justify-content: center; align-items: center; flex-direction: column;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- GLOBAL LOADING OVERLAY -->
+  <div id="loading-overlay">
+      <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-600 mb-4"></div>
+      <h2 class="text-xl text-purple-800 animate-pulse">Processing...</h2>
+  </div>
+
+  <!-- NAVIGATION -->
+  <header class="bg-white/90 backdrop-blur shadow sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3 cursor-pointer" onclick="router('home')">
+         <img src="images/PB English Transparent.png" onerror="this.src='https://placehold.co/150x60?text=PB+Logo'" alt="Logo" class="h-10 md:h-12 w-auto">
+         <span class="text-purple-700 font-bold text-xl hidden md:block dynapuff">Communities' Choice</span>
+      </div>
+      
+      <!-- Public Nav -->
+      <nav id="nav-public" class="flex gap-2 text-sm">
+        <button onclick="router('vote')" class="text-purple-700 hover:bg-purple-50 px-3 py-2 rounded-lg">Vote</button>
+        <button onclick="router('timeline')" class="text-purple-700 hover:bg-purple-50 px-3 py-2 rounded-lg hidden sm:block">Timeline</button>
+        <button onclick="openAuthModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow transition-transform hover:scale-105">Login / Register</button>
+      </nav>
+
+      <!-- Secure Nav (Injected via JS) -->
+      <nav id="nav-secure" class="hidden flex items-center gap-3">
+        <div class="text-right hidden md:block">
+            <div id="user-name-display" class="text-sm font-bold text-gray-800">User</div>
+            <div id="user-role-display" class="text-xs text-purple-600 font-bold uppercase">Applicant</div>
+        </div>
+        <button onclick="router('dashboard')" class="text-purple-700 hover:bg-purple-50 px-3 py-2 rounded-lg">Dashboard</button>
+        <button onclick="logout()" class="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-2 rounded-lg">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-grow container mx-auto px-4 py-6 relative">
+
+    <!-- VIEW: HOME / LANDING -->
+    <div id="view-home" class="view-section animate-fade-in">
+        <div class="text-center py-12">
+            <h1 class="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-teal-500 mb-4">You Decide. You Benefit.</h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto mb-8 font-arial">Welcome to the Round 2 Application Cycle (2026). Apply for funding or join a committee to shape the future of Torfaen.</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="router('apply-start')" class="bg-purple-600 hover:bg-purple-700 text-white text-lg px-8 py-4 rounded-xl shadow-lg transition-transform hover:-translate-y-1">Apply for Funding</button>
+                <button onclick="router('timeline')" class="bg-white border-2 border-purple-100 text-purple-700 text-lg px-8 py-4 rounded-xl shadow-md hover:bg-purple-50">View Timeline</button>
+            </div>
+        </div>
+        
+        <!-- Area Carousel -->
+        <div class="swiper mySwiper max-w-4xl mx-auto h-[400px] rounded-2xl shadow-2xl overflow-hidden mb-12">
+            <div class="swiper-wrapper">
+                <div class="swiper-slide bg-cover bg-center flex items-end p-8" style="background-image: url('https://placehold.co/800x400/9333ea/ffffff?text=Blaenavon');">
+                    <div class="bg-white/90 p-4 rounded-xl backdrop-blur">
+                        <h3 class="text-2xl font-bold text-purple-800">Blaenavon</h3>
+                        <p class="text-gray-700">Priorities: Heritage, Youth Services, Transport.</p>
+                    </div>
+                </div>
+                <div class="swiper-slide bg-cover bg-center flex items-end p-8" style="background-image: url('https://placehold.co/800x400/14b8a6/ffffff?text=Thornhill');">
+                    <div class="bg-white/90 p-4 rounded-xl backdrop-blur">
+                        <h3 class="text-2xl font-bold text-teal-800">Thornhill</h3>
+                        <p class="text-gray-700">Priorities: Health, Green Spaces, Community Safety.</p>
+                    </div>
+                </div>
+                 <div class="swiper-slide bg-cover bg-center flex items-end p-8" style="background-image: url('https://placehold.co/800x400/ec4899/ffffff?text=Trevethin');">
+                    <div class="bg-white/90 p-4 rounded-xl backdrop-blur">
+                        <h3 class="text-2xl font-bold text-pink-800">Trevethin & St Cadocs</h3>
+                        <p class="text-gray-700">Priorities: Older People, Education, Wellbeing.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="swiper-pagination"></div>
+        </div>
+    </div>
+
+    <!-- VIEW: APPLICANT DASHBOARD -->
+    <div id="view-applicant-dashboard" class="view-section hidden-page animate-fade-in">
+        <h2 class="text-3xl font-bold text-gray-800 mb-6">My Applications</h2>
+        
+        <div class="grid md:grid-cols-3 gap-6">
+            <!-- New App Card -->
+            <div onclick="router('apply-form')" class="border-2 border-dashed border-gray-300 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors h-64">
+                <div class="text-5xl text-gray-300 mb-2">+</div>
+                <span class="text-gray-500 font-bold text-lg">Start New Application</span>
+                <span class="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded mt-2">Round 2 Open</span>
+            </div>
+            
+            <!-- Application List Container -->
+            <div id="applicant-apps-list" class="col-span-2 grid gap-4">
+                <!-- Apps injected here -->
+                <div class="text-gray-500 italic p-4">Loading your applications...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: APPLICATION FORM (EOI) -->
+    <div id="view-apply-form" class="view-section hidden-page animate-fade-in max-w-3xl mx-auto">
+        <div class="flex items-center gap-2 mb-4 text-gray-500 cursor-pointer hover:text-purple-600" onclick="router('dashboard')">
+            <span>← Back to Dashboard</span>
+        </div>
+        <div class="bg-white p-8 rounded-2xl shadow-xl border-t-8 border-purple-500">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-purple-800">Expression of Interest (EOI)</h2>
+                    <p class="text-sm text-gray-500">Round 2 - Part 1 Form</p>
+                </div>
+                <div class="text-right">
+                    <div id="form-status" class="text-xs font-bold text-amber-600 bg-amber-100 px-3 py-1 rounded-full inline-block">DRAFT</div>
+                </div>
+            </div>
+
+            <form id="eoi-form" onsubmit="handleEoiSubmit(event)" class="space-y-6">
+                <!-- Project Details -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label>Project Title</label>
+                        <input type="text" name="projectTitle" required placeholder="e.g. Community Garden">
+                    </div>
+                    <div>
+                        <label>Organization / Group Name</label>
+                        <input type="text" name="orgName" required placeholder="e.g. Blaenavon Green Team">
+                    </div>
+                </div>
+
+                <div>
+                    <label>Area of Benefit</label>
+                    <select name="area" class="h-12" required>
+                        <option value="">Select Primary Area...</option>
+                        <option value="Blaenavon">Blaenavon</option>
+                        <option value="Thornhill & Upper Cwmbran">Thornhill & Upper Cwmbran</option>
+                        <option value="Trevethin, Penygarn & St. Cadocs">Trevethin, Penygarn & St. Cadocs</option>
+                        <option value="Cross-Area">Cross-Area (Multiple)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label>Project Summary (Max 200 words)</label>
+                    <textarea name="summary" rows="4" required placeholder="Describe what you want to do..."></textarea>
+                </div>
+
+                <!-- Budget -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label>Total Project Cost (£)</label>
+                        <input type="number" name="totalCost" required placeholder="5000">
+                    </div>
+                    <div>
+                        <label>Grant Requested (£)</label>
+                        <input type="number" name="grantRequest" required placeholder="5000">
+                    </div>
+                </div>
+
+                <!-- Strategic Fit -->
+                <div>
+                    <label>Which Priority does this address?</label>
+                    <select name="priority" class="h-12">
+                        <option value="Health & Wellbeing">Health & Wellbeing</option>
+                        <option value="Youth Services">Youth Services</option>
+                        <option value="Environment">Environment & Place</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Community Safety">Community Safety</option>
+                    </select>
+                </div>
+
+                <div class="pt-6 border-t flex justify-between items-center">
+                    <button type="button" onclick="saveDraft()" class="text-gray-600 hover:text-purple-600 font-bold">Save Draft</button>
+                    <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg">Submit EOI</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- VIEW: COMMITTEE DASHBOARD -->
+    <div id="view-committee-dashboard" class="view-section hidden-page animate-fade-in">
+        <div class="flex justify-between items-end mb-6">
+            <div>
+                <h2 class="text-3xl font-bold text-gray-800">Committee Dashboard</h2>
+                <p class="text-gray-600">Area: <span id="committee-area-badge" class="font-bold text-purple-600">Loading...</span></p>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold text-teal-600 dynapuff" id="committee-progress">0%</div>
+                <div class="text-xs text-gray-500 font-bold uppercase">Scoring Progress</div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-purple-50 text-purple-900">
+                        <tr>
+                            <th class="p-4 font-bold rounded-tl-lg">Ref</th>
+                            <th class="p-4 font-bold">Project Title</th>
+                            <th class="p-4 font-bold">Applicant</th>
+                            <th class="p-4 font-bold">Amount</th>
+                            <th class="p-4 font-bold">Your Score</th>
+                            <th class="p-4 font-bold rounded-tr-lg">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="committee-apps-list">
+                        <!-- Injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: SCORING INTERFACE -->
+    <div id="view-scoring" class="view-section hidden-page animate-fade-in h-[calc(100vh-100px)]">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="router('dashboard')" class="text-sm font-bold text-gray-500 hover:text-purple-600">← Back</button>
+            <div class="text-lg font-bold text-gray-800"><span id="score-ref"></span>: <span id="score-title"></span></div>
+            <button onclick="submitFinalScore()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded shadow text-sm">Submit Final Score</button>
+        </div>
+        
+        <div class="grid lg:grid-cols-2 gap-4 h-full">
+            <!-- Left: Application View -->
+            <div class="bg-white rounded-xl shadow-lg p-6 overflow-y-auto border border-gray-200" id="application-viewer">
+                <!-- Dynamic Content -->
+                <div class="animate-pulse space-y-4">
+                    <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+            </div>
+
+            <!-- Right: Scoring Matrix -->
+            <div class="bg-purple-50 rounded-xl shadow-lg p-6 overflow-y-auto border border-purple-100">
+                <div class="flex justify-between items-center mb-4 sticky top-0 bg-purple-50 pb-2 z-10 border-b border-purple-200">
+                    <h3 class="text-xl font-bold text-purple-800">Scoring Matrix</h3>
+                    <div class="text-2xl font-bold text-purple-600 bg-white px-3 py-1 rounded-lg shadow-sm" id="live-total-score">0/100</div>
+                </div>
+                
+                <div id="criteria-container" class="space-y-6">
+                    <!-- Criteria injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW: ADMIN DASHBOARD -->
+    <div id="view-admin-dashboard" class="view-section hidden-page animate-fade-in">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-800">Master Administration</h2>
+            <div class="flex gap-2">
+                <button onclick="seedDatabase()" class="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg font-bold hover:bg-amber-200 text-sm">🛠 Seed Demo Data</button>
+                <select id="round-selector" class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold">
+                    <option value="2026">Round 2 (2026)</option>
+                    <option value="2025">Round 1 (2025)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-purple-500">
+                <div class="text-gray-500 text-xs uppercase font-bold">Total Apps</div>
+                <div class="text-3xl font-bold text-purple-800" id="stat-total-apps">-</div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-teal-500">
+                <div class="text-gray-500 text-xs uppercase font-bold">Total Grant Request</div>
+                <div class="text-3xl font-bold text-teal-800" id="stat-total-grant">-</div>
+            </div>
+             <div class="bg-white p-6 rounded-xl shadow border-l-4 border-pink-500">
+                <div class="text-gray-500 text-xs uppercase font-bold">Pending Review</div>
+                <div class="text-3xl font-bold text-pink-800" id="stat-pending">-</div>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-bold text-gray-700 mb-4">Master Application Tracker</h3>
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-gray-100 border-b">
+                    <tr>
+                        <th class="p-3">Ref</th>
+                        <th class="p-3">Title</th>
+                        <th class="p-3">Area</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Avg Score</th>
+                        <th class="p-3">Admin</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-master-list">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 font-bold">X</button>
+            
+            <h2 class="text-2xl font-bold text-purple-700 mb-6 text-center">Portal Access</h2>
+            
+            <div class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email Address">
+                <input type="password" id="auth-password" placeholder="Password">
+                
+                <button onclick="handleLogin()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-xl shadow">Log In</button>
+                
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink mx-4 text-gray-400 text-xs">OR</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                <button onclick="handleRegister()" class="w-full bg-white border-2 border-purple-100 text-purple-600 hover:bg-purple-50 font-bold py-3 rounded-xl">Create Applicant Account</button>
+            </div>
+            <p id="auth-msg" class="text-center text-red-500 text-sm mt-4 font-bold min-h-[20px]"></p>
+        </div>
+    </div>
+
+  </main>
+
+  <!-- Firebase SDKs & Main Logic -->
+  <!-- Script moved to end of body to ensure DOM is ready -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, onSnapshot, query, where, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- CONFIGURATION FIX ---
+    // We use the environment variable __firebase_config to get the keys automatically.
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    // --- STATE MANAGEMENT ---
+    let currentUser = null;
+    let userRole = 'guest'; // guest, applicant, member, admin
+    let userArea = ''; 
+    let activeRound = '2026'; // Default to round 2
+    let currentScoringAppId = null;
+
+    // --- CRITERIA DEFINITION ---
+    const SCORING_CRITERIA = [
+        { id: 'c1', name: 'Project Overview & Objectives', weight: 10 },
+        { id: 'c2', name: 'Local Priorities Fit', weight: 10 },
+        { id: 'c3', name: 'Community Benefit', weight: 10 },
+        { id: 'c4', name: 'Budget Value', weight: 10 },
+        { id: 'c5', name: 'Deliverability & Risk', weight: 10 }
+    ];
+
+    // --- GLOBAL FUNCTIONS EXPOSED TO WINDOW ---
+    // Because this is a module, we must explicitly attach functions called by HTML onclick events to 'window'.
+
+    window.router = function(viewName) {
+        // Close menus
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.classList.add('hidden');
+        
+        // Role Redirects for Dashboard
+        if (viewName === 'dashboard') {
+            if (userRole === 'admin') viewName = 'admin-dashboard';
+            else if (userRole === 'member') viewName = 'committee-dashboard';
+            else viewName = 'applicant-dashboard';
+        }
+
+        // Hide all views
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden-page'));
+
+        // Logic
+        if (viewName === 'home') document.getElementById('view-home').classList.remove('hidden-page');
+        if (viewName === 'timeline') { /* Just stay on home or show timeline modal */ alert("Timeline Overlay would open here"); document.getElementById('view-home').classList.remove('hidden-page'); }
+        if (viewName === 'vote') {
+             // Placeholder for vote routing
+             alert("Voting is currently closed for Round 1. Round 2 voting opens later in 2026.");
+             document.getElementById('view-home').classList.remove('hidden-page');
+        }
+        if (viewName === 'applicant-dashboard') { 
+            const dashboard = document.getElementById('view-applicant-dashboard');
+            if (dashboard) {
+                dashboard.classList.remove('hidden-page');
+                loadApplicantApps();
+            }
+        }
+        if (viewName === 'apply-start') {
+            if(!currentUser) { window.openAuthModal(); return; }
+            window.router('apply-form');
+        }
+        if (viewName === 'apply-form') {
+            const formView = document.getElementById('view-apply-form');
+            if (formView) formView.classList.remove('hidden-page');
+        }
+        
+        if (viewName === 'committee-dashboard') {
+            const commDashboard = document.getElementById('view-committee-dashboard');
+            if (commDashboard) {
+                commDashboard.classList.remove('hidden-page');
+                const badge = document.getElementById('committee-area-badge');
+                if (badge) badge.innerText = userArea || 'Unassigned';
+                loadCommitteeApps();
+            }
+        }
+
+        if (viewName === 'admin-dashboard') {
+            const adminDash = document.getElementById('view-admin-dashboard');
+            if (adminDash) {
+                adminDash.classList.remove('hidden-page');
+                loadAdminMasterData();
+            }
+        }
+
+        if (viewName === 'scoring') {
+            const scoringView = document.getElementById('view-scoring');
+            if (scoringView) scoringView.classList.remove('hidden-page');
+        }
+
+        window.scrollTo(0,0);
+    };
+
+    // --- AUTH FUNCTIONS ---
+    window.openAuthModal = function() { 
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.classList.remove('hidden'); 
+    };
+    window.closeAuthModal = function() { 
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.classList.add('hidden'); 
+    };
+
+    window.handleLogin = async function() {
+        const emailInput = document.getElementById('auth-email');
+        const passInput = document.getElementById('auth-password');
+        if (!emailInput || !passInput) return;
+        
+        const email = emailInput.value;
+        const pass = passInput.value;
+        if(!email || !pass) return showAuthMsg("Please fill all fields");
+
+        toggleLoading(true);
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            window.closeAuthModal();
+        } catch(e) {
+            showAuthMsg("Login Failed: " + e.message);
+            toggleLoading(false);
+        }
+    };
+
+    window.handleRegister = async function() {
+        const emailInput = document.getElementById('auth-email');
+        const passInput = document.getElementById('auth-password');
+        if (!emailInput || !passInput) return;
+
+        const email = emailInput.value;
+        const pass = passInput.value;
+        if(!email || !pass) return showAuthMsg("Please fill all fields");
+
+        toggleLoading(true);
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, email, pass);
+            // Create User Doc
+            await setDoc(doc(db, "users", cred.user.uid), {
+                email: email,
+                role: 'applicant',
+                createdAt: serverTimestamp()
+            });
+            // Force reload to catch new user doc logic
+            location.reload();
+        } catch(e) {
+            showAuthMsg("Registration Error: " + e.message);
+            toggleLoading(false);
+        }
+    };
+
+    window.logout = function() {
+        signOut(auth);
+    };
+
+    function showAuthMsg(msg) {
+        const msgEl = document.getElementById('auth-msg');
+        if (msgEl) msgEl.textContent = msg;
+    }
+
+    function updateNavState() {
+        const navPublic = document.getElementById('nav-public');
+        const navSecure = document.getElementById('nav-secure');
+        const userNameDisplay = document.getElementById('user-name-display');
+        const userRoleDisplay = document.getElementById('user-role-display');
+
+        if (!navPublic || !navSecure) return; // Safety check
+
+        if(currentUser) {
+            navPublic.classList.add('hidden');
+            navSecure.classList.remove('hidden');
+            navSecure.classList.add('flex');
+            if (userNameDisplay) userNameDisplay.textContent = currentUser.email.split('@')[0];
+            if (userRoleDisplay) userRoleDisplay.textContent = userRole;
+        } else {
+            navPublic.classList.remove('hidden');
+            navSecure.classList.add('hidden');
+            navSecure.classList.remove('flex');
+        }
+    }
+
+    // --- APPLICANT LOGIC ---
+    window.handleEoiSubmit = async function(e) {
+        e.preventDefault();
+        if(!currentUser) return;
+        toggleLoading(true);
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            await addDoc(collection(db, "applications"), {
+                ...data,
+                userId: currentUser.uid,
+                status: "Submitted",
+                stage: "EOI",
+                round: activeRound,
+                createdAt: serverTimestamp(),
+                ref: "PB-" + Math.floor(Math.random() * 10000) // Simple ref gen
+            });
+            alert("EOI Submitted Successfully!");
+            e.target.reset();
+            window.router('dashboard');
+        } catch(err) {
+            alert("Error: " + err.message);
+        }
+        toggleLoading(false);
+    };
+
+    window.saveDraft = function() {
+        alert("Draft saved! (This is a placeholder for the save draft functionality)");
+    };
+
+    function loadApplicantApps() {
+        const container = document.getElementById('applicant-apps-list');
+        if (!container) return;
+        container.innerHTML = '<div class="animate-pulse">Loading...</div>';
+        
+        const q = query(collection(db, "applications"), where("userId", "==", currentUser.uid));
+        
+        onSnapshot(q, (snap) => {
+            if(snap.empty) { container.innerHTML = '<p class="text-gray-500">No applications found.</p>'; return; }
+            
+            container.innerHTML = '';
+            snap.forEach(docSnap => {
+                const app = docSnap.data();
+                const div = document.createElement('div');
+                div.className = "portal-card p-6 border-l-8 border-purple-500";
+                div.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span class="font-bold text-gray-400 text-xs">${app.ref || 'DRAFT'}</span>
+                        <span class="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded">${app.status}</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-1">${app.projectTitle}</h3>
+                    <p class="text-gray-600 text-sm mb-4">Round: ${app.round}</p>
+                    <button class="text-purple-600 font-bold text-sm hover:underline">View Details</button>
+                `;
+                container.appendChild(div);
+            });
+        });
+    }
+
+    // --- COMMITTEE LOGIC ---
+    function loadCommitteeApps() {
+        const tbody = document.getElementById('committee-apps-list');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" class="p-4">Loading assigned applications...</td></tr>';
+
+        const q = query(collection(db, "applications"), where("round", "==", activeRound), where("status", "==", "Submitted"));
+
+        onSnapshot(q, (snap) => {
+            tbody.innerHTML = '';
+            const apps = [];
+            snap.forEach(docSnap => apps.push({id: docSnap.id, ...docSnap.data()}));
+            
+            // Client Filter for Area
+            const myApps = apps.filter(a => a.area === userArea || a.area === 'Cross-Area');
+
+            if(myApps.length === 0) {
+                 tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-gray-500">No applications found for your area in this round.</td></tr>';
+                 return;
+            }
+
+            myApps.forEach(app => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-gray-50";
+                tr.innerHTML = `
+                    <td class="p-4 font-mono text-sm text-gray-500">${app.ref}</td>
+                    <td class="p-4 font-bold text-gray-800">${app.projectTitle}</td>
+                    <td class="p-4 text-gray-600">${app.orgName}</td>
+                    <td class="p-4 font-mono text-gray-600">£${app.grantRequest}</td>
+                    <td class="p-4 font-bold text-gray-400">- / 50</td>
+                    <td class="p-4"><button onclick="window.openScoring('${app.id}')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1 rounded font-bold text-sm">Score</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+    }
+
+    window.openScoring = async function(appId) {
+        currentScoringAppId = appId;
+        window.router('scoring');
+        toggleLoading(true);
+        
+        // 1. Fetch App Data
+        const docSnap = await getDoc(doc(db, "applications", appId));
+        const app = docSnap.data();
+
+        // 2. Render Left View
+        const viewer = document.getElementById('application-viewer');
+        if (viewer) {
+            viewer.innerHTML = `
+                <div class="mb-6">
+                    <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-bold">${app.area}</span>
+                    <span class="bg-purple-100 text-purple-600 px-2 py-1 rounded text-xs font-bold ml-2">${app.priority}</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">${app.projectTitle}</h2>
+                <div class="text-lg font-bold text-gray-600 mb-6">${app.orgName}</div>
+                
+                <div class="prose max-w-none text-gray-700">
+                    <h4 class="font-bold">Project Summary</h4>
+                    <p class="mb-4">${app.summary}</p>
+                    
+                    <h4 class="font-bold">Financials</h4>
+                    <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded mb-4">
+                        <div>Total Cost: <b>£${app.totalCost}</b></div>
+                        <div>Requested: <b>£${app.grantRequest}</b></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const scoreRefEl = document.getElementById('score-ref');
+        if (scoreRefEl) scoreRefEl.innerText = app.ref;
+
+        const scoreTitleEl = document.getElementById('score-title');
+        if (scoreTitleEl) scoreTitleEl.innerText = app.projectTitle;
+
+        // 3. Render Right Matrix
+        const matrix = document.getElementById('criteria-container');
+        if (matrix) {
+            matrix.innerHTML = '';
+            
+            SCORING_CRITERIA.forEach(c => {
+                const div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-lg shadow-sm border border-gray-100";
+                div.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <label class="text-gray-800">${c.name}</label>
+                        <span class="text-xs text-gray-400">Weight: ${c.weight}</span>
+                    </div>
+                    <input type="range" min="0" max="10" value="0" class="w-full mb-2" oninput="window.updateLiveScore(this)">
+                    <div class="flex justify-between items-center">
+                        <span class="text-2xl font-bold text-purple-600 score-val">0</span>
+                        <textarea class="w-2/3 text-xs p-2 border rounded" placeholder="Justification note..."></textarea>
+                    </div>
+                `;
+                matrix.appendChild(div);
+            });
+        }
+
+        toggleLoading(false);
+    };
+
+    window.updateLiveScore = function(input) {
+        input.nextElementSibling.querySelector('.score-val').innerText = input.value;
+        
+        // Calc Total
+        const inputs = document.querySelectorAll('#criteria-container input[type="range"]');
+        let total = 0;
+        inputs.forEach(inp => total += parseInt(inp.value));
+        const totalScoreEl = document.getElementById('live-total-score');
+        if (totalScoreEl) totalScoreEl.innerText = total + "/50";
+    };
+
+    window.submitFinalScore = async function() {
+        if(!confirm("Submit final score? This cannot be edited.")) return;
+        toggleLoading(true);
+        // In real app, save to 'scores' collection
+        await new Promise(r => setTimeout(r, 1000)); // Mock delay
+        alert("Score Saved!");
+        window.router('dashboard');
+        toggleLoading(false);
+    };
+
+    // --- ADMIN LOGIC ---
+    function loadAdminMasterData() {
+        const tbody = document.getElementById('admin-master-list');
+        const roundSelector = document.getElementById('round-selector');
+        if (!tbody || !roundSelector) return;
+        
+        const round = roundSelector.value;
+        
+        const q = query(collection(db, "applications"), where("round", "==", round));
+        
+        onSnapshot(q, (snap) => {
+            let totalGrant = 0;
+            let pending = 0;
+            tbody.innerHTML = '';
+            
+            snap.forEach(docSnap => {
+                const app = docSnap.data();
+                totalGrant += parseInt(app.grantRequest || 0);
+                if(app.status === 'Submitted') pending++;
+                
+                const tr = document.createElement('tr');
+                tr.className = "border-b";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono text-xs">${app.ref}</td>
+                    <td class="p-3 font-bold truncate max-w-[150px]">${app.projectTitle}</td>
+                    <td class="p-3">${app.area}</td>
+                    <td class="p-3"><span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">${app.status}</span></td>
+                    <td class="p-3 text-gray-400">-</td>
+                    <td class="p-3"><button class="text-red-500 hover:underline text-xs" onclick="window.deleteApp('${docSnap.id}')">Del</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const statApps = document.getElementById('stat-total-apps');
+            if(statApps) statApps.innerText = snap.size;
+
+            const statGrant = document.getElementById('stat-total-grant');
+            if(statGrant) statGrant.innerText = "£" + (totalGrant/1000).toFixed(1) + "k";
+
+            const statPending = document.getElementById('stat-pending');
+            if(statPending) statPending.innerText = pending;
+        });
+    }
+
+    window.deleteApp = async function(id) {
+        if(confirm("Delete this application?")) {
+            await deleteDoc(doc(db, "applications", id));
+        }
+    };
+
+    // --- SEED DATA (For Demo) ---
+    window.seedDatabase = async function() {
+        if(!confirm("This will inject demo data into your Firestore. Proceed?")) return;
+        toggleLoading(true);
+
+        // 1. Create Committee Member
+        const demoUid = "demoMember" + Math.floor(Math.random()*1000);
+        await setDoc(doc(db, "users", "committee_demo"), {
+            email: "committee@torfaen.gov.uk",
+            role: "member",
+            area: "Blaenavon" // Demo Area
+        });
+
+        // 2. Create Applications
+        const apps = [
+            { title: "Blaenavon Heritage Trail", org: "History Soc", area: "Blaenavon", req: 4500, sum: "Installing QR codes on historic sites." },
+            { title: "Youth skate Park", org: "Active Youth", area: "Blaenavon", req: 8000, sum: "New ramps for the skate park." },
+            { title: "Thornhill Green Space", org: "Eco Group", area: "Thornhill & Upper Cwmbran", req: 2000, sum: "Planting trees." }
+        ];
+
+        for(let a of apps) {
+            await addDoc(collection(db, "applications"), {
+                projectTitle: a.title,
+                orgName: a.org,
+                area: a.area,
+                grantRequest: a.req,
+                totalCost: a.req + 1000,
+                summary: a.sum,
+                priority: "Community Benefit",
+                status: "Submitted",
+                stage: "EOI",
+                round: "2026",
+                userId: "demo_applicant",
+                ref: "PB-DEMO-" + Math.floor(Math.random()*100),
+                createdAt: serverTimestamp()
+            });
+        }
+        
+        alert("Demo Data Seeded! You can now log in as 'committee@torfaen.gov.uk' (create this user in Auth tab if needed) or view the Admin Dashboard.");
+        toggleLoading(false);
+    };
+
+    // --- UTILS ---
+    function toggleLoading(show) {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = show ? 'flex' : 'none';
+    }
+
+    // --- INITIALIZATION ON LOAD ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Swiper init is handled above.
+        
+        // Initialize Auth Listener
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Fetch extra user details from Firestore
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    currentUser = { ...user, ...data };
+                    userRole = data.role || 'applicant';
+                    userArea = data.area || '';
+                    updateNavState();
+                    window.router('dashboard'); // Redirect to appropriate dashboard
+                } else {
+                    // New user (created via register), wait for profile creation
+                    currentUser = user;
+                    userRole = 'applicant';
+                    updateNavState();
+                    window.router('dashboard');
+                }
+            } else {
+                currentUser = null;
+                userRole = 'guest';
+                updateNavState();
+                window.router('home');
+            }
+            toggleLoading(false);
+        });
+    });
+
+  </script>
+</body>
+</html>
